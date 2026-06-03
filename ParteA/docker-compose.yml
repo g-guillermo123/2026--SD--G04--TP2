@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   nanomq:
     image: emqx/nanomq:latest
@@ -37,6 +35,6 @@ services:
     depends_on:
       - nanomq
     ports:
-      - "25683:5683/udp"
+      - "5684:5683/udp"
     profiles: ["nodos"]
     restart: unless-stopped
