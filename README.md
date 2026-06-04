@@ -18,6 +18,36 @@ El trabajo práctico se divide en dos secciones principales, cada una resolviend
 
 ---
 
+## Desarrollo de la Parte A: Comunicación IoT mediante MQTT y servidores CoAP
+
+En la Parte A, se implementa la arquitectura base para una red IoT distribuida (un entorno de Smart Campus), donde se combinan dos protocolos: MQTT (para el envío masivo y asíncrono de eventos) y CoAP (para consultas directas tipo REST bajo demanda).
+El broker MQTT(NanoMQ) se encarga de ser el intermediario entre el cliente publicador (sensor simulado) y los nodos consumidores subscriptos al tópico dónde el sensor publica.
+Los Nodos (dispositivos IoT) corren de forma independiente mediante gorutinas:
+* Publicador MQTT (Publisher): lee periódicamente un componente simulador que genera mediciones de temperatura y las envía al Broker en un formato JSON serializado.
+* Suscriptor MQTT (Subscriber): se mantiene escuchando un tópico específico, si el broker le transmite una orden, el nodo reacciona de inmediato ejecutando la acción.
+* Servidor CoAP Local: levanta en paralelo un servidor web. Esto permite que cualquier cliente externo en la red pueda hacerle una consulta directa (un GET /temperatura o GET/PUT /config) directamente al nodo sin necesidad de pasar por el broker MQTT.
+
+### Ejecución (Vía Docker Compose)
+
+Para levantar el entorno completo, navegar al directorio `ParteB` y utilizar tres terminales:
+
+```bash
+# Terminal 1: Levantar broker y ver registro de logs
+make run
+make docker compose logs -f
+
+# Terminal 2: Levantar el primer cliente interactivo
+make docker-nodo1
+
+# Terminal 3: Levantar el segundo cliente interactivo
+make docker-nodo2
+
+# Terminal 4 (opcional): Envío de comando GET para simular lectura
+coap-client -m get coap://127.0.0.1:5683/temperatura
+```
+
+---
+
 ## Desarrollo de la Parte B: Telemetría y Detección de Fallos
 
 En la Parte B implementamos un sistema distribuido enfocado en la comunicación confiable y la tolerancia a fallos. Simulamos nodos sensores (clientes) que reportan datos a un servidor central. 
@@ -41,3 +71,4 @@ make docker-cliente1
 
 # Terminal 3: Levantar el segundo cliente interactivo
 make docker-cliente2
+```
