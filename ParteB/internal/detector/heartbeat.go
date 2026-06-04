@@ -1,47 +1,117 @@
 package detector
 
-// TODO 5-8: Implementar envio y recepcion de heartbeats UDP.
-// Necesitaras importar:
-//   "encoding/json"
-//   "fmt"
-//   "net"
-//   "time"
-//   "sd-comunicacion/pkg/protocolo"
+import (
+	"encoding/json"
+	"fmt"
+	"net"
+	"time"
 
-// Enviador se encarga de enviar heartbeats UDP periodicamente
+	"sd-comunicacion/pkg/protocolo"
+)
+
+// Enviador envía heartbeats UDP periódicamente (Servidor)
 type Enviador struct {
 	destino   string
-	intervalo time.Duration // TODO: usar time.Duration en vez de int64
+	intervalo time.Duration
 	nodoID    string
 	contador  int
 }
 
-// TODO 5: Implementar la funcion NuevaEnviador.
-// Debe recibir destino (string), intervalo (time.Duration) y nodoID (string).
-
-// TODO 6: Implementar el metodo (e *Enviador) Iniciar().
-// Debe enviar Heartbeat cada 'intervalo' por UDP al destino configurado.
-
-// Receptor escucha heartbeats y detecta si dejan de llegar.
-// Debe manejar estados: alive -> suspect -> dead.
-type Receptor struct {
-	puerto  string
-	timeout time.Duration // TODO: usar time.Duration en vez de int64
-	// ultimo debe guardar time.Time o timestamp del ultimo heartbeat recibido
-	ultimo time.Time
-	// estado puede ser "alive", "suspect" o "dead"
-	activo bool
+func NuevoEnviador(destino string, intervalo time.Duration, nodoID string) *Enviador {
+	return &Enviador{
+		destino:   destino,
+		intervalo: intervalo,
+		nodoID:    nodoID,
+	}
 }
 
-// TODO 7: Implementar la funcion NuevoReceptor.
-// Debe recibir puerto (string) y timeout (time.Duration).
+func (e *Enviador) Iniciar() {
+	for {
+		// Marcamos la conexión y envío (Fire and forget, es UDP) [cite: 397]
+		conn, err := net.Dial("udp", e.destino)
+		if err == nil {
+			hb := protocolo.Heartbeat{
+				NodoID:    e.nodoID,
+				Timestamp: time.Now().Unix(),
+				Contador:  e.contador,
+			}
+			data, _ := json.Marshal(hb)
+			conn.Write(data)
+			conn.Close()
+			e.contador++
+		}
+		time.Sleep(e.intervalo)
+	}
+}
 
-// TODO 8: Implementar el metodo (r *Receptor) Escuchar().
-// Debe:
-//   - Escuchar UDP en 'puerto'
-//   - Decodificar mensajes JSON tipo protocolo.Heartbeat
-//   - Actualizar ultimo timestamp al recibir
-//   - En una goroutine separada, revisar periodicamente:
-//       si time.Since(ultimo) > timeout: pasar a "suspect"
-//       (opcional) si time.Since(ultimo) > 2*timeout: pasar a "dead"
-//   - Imprimir cambios de estado por consola
+// Receptor escucha heartbeats y cambia estados (Cliente)
+type Receptor struct {
+	puerto  string
+	timeout time.Duration
+	ultimo  time.Time
+	estado  string // "alive", "suspect", "dead"
+}
+
+func NuevoReceptor(puerto string, timeout time.Duration) *Receptor {
+	return &Receptor{
+		puerto:  puerto,
+		timeout: timeout,
+		estado:  "dead", // Asume muerto hasta que llega el primer heartbeat
+	}
+}
+
+func (r *Receptor) Escuchar() {
+	addr, err := net.ResolveUDPAddr("udp", r.puerto)
+	if err != nil {
+		fmt.Println("Error resolviendo puerto UDP:", err)
+		return
+	}
+
+	conn, err := net.ListenUDP("udp", addr)
+	if err != nil {
+		fmt.Println("Error escuchando UDP:", err)
+		return
+	}
+	defer conn.Close()
+
+	// Goroutine que revisa el timeout periódicamente para cambiar el estado (alive -> suspect -> dead) [cite: 425]
+	go func() {
+		for {
+			time.Sleep(r.timeout / 2)
+			if r.ultimo.IsZero() {
+				continue
+			}
+
+			inactividad := time.Since(r.ultimo)
+			nuevoEstado := r.estado
+
+			if inactividad > 2*r.timeout {
+				nuevoEstado = "dead"
+			} else if inactividad > r.timeout {
+				nuevoEstado = "suspect"
+			} else {
+				nuevoEstado = "alive"
+			}
+
+			if nuevoEstado != r.estado {
+				r.estado = nuevoEstado
+				fmt.Printf("[Detector] Servidor pasó a estado: %s\n", r.estado)
+			}
+		}
+	}()
+
+	buf := make([]byte, 1024)
+	for {
+		n, _, err := conn.ReadFromUDP(buf) // Escuchamos heartbeats [cite: 410]
+		if err == nil {
+			var hb protocolo.Heartbeat
+			if err := json.Unmarshal(buf[:n], &hb); err == nil {
+				r.ultimo = time.Now()
+				if r.estado != "alive" {
+					r.estado = "alive"
+					fmt.Printf("[Detector] Servidor en estado: alive (Recibido de %s)\n", hb.NodoID)
+				}
+			}
+		}
+	}
+}

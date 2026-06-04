@@ -26,10 +26,10 @@ docker-down:
 	docker compose down
 
 docker-cliente1:
-	docker compose run --rm -it cliente1
+	docker compose run --name cliente1 --rm -it cliente1
 
 docker-cliente2:
-	docker compose run --rm -it cliente2
+	docker compose run --name cliente2 --rm -it cliente2
 
 docker-logs:
 	docker compose logs -f servidor
