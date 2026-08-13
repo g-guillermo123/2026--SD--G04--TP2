@@ -9,7 +9,7 @@ Proyecto base para la parte B de la Práctica Guiada 2: RPC, reintentos y detecc
 
 ## Ejecución
 
-### Local
+### Local (Linux / Mac - con Make)
 
 ```bash
 # Terminal 1: Servidor
@@ -20,6 +20,25 @@ NOMBRE=cliente-a SERVIDOR=localhost:1234 make run-cliente
 
 # Terminal 3: Segundo cliente
 NOMBRE=cliente-b SERVIDOR=localhost:1234 make run-cliente
+```
+
+### Local (Windows / Manual - sin Make)
+
+Si no tenés `make` instalado, podés compilar los archivos `main.go` directamente a ejecutables y correrlos:
+
+```powershell
+# 1. Compilar los ejecutables (se guardan en la carpeta bin/)
+go build -o bin/servidor.exe ./cmd/servidor
+go build -o bin/cliente.exe ./cmd/cliente
+
+# Terminal 1: Ejecutar Servidor
+.\bin\servidor.exe
+
+# Terminal 2: Ejecutar Cliente A
+$env:NOMBRE="cliente-a"; $env:SERVIDOR="localhost:1234"; .\bin\cliente.exe
+
+# Terminal 3: Ejecutar Cliente B
+$env:NOMBRE="cliente-b"; $env:SERVIDOR="localhost:1234"; .\bin\cliente.exe
 ```
 
 ### Docker Compose (interactivo)

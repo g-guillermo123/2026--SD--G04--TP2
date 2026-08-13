@@ -27,7 +27,7 @@ type Cliente struct {
 // 	 Sugerencia: usar mqtt.NewClientOptions().AddBroker(...).SetClientID(...).SetWill(...)
 
 func NuevoCliente(config nodo.Configuracion) (*Cliente, error) {
-	topicoTestamento := fmt.Sprint("nodo/%s/estado", config.ID) // tópico del testamento, usando el ID del nodo
+	topicoTestamento := fmt.Sprintf("nodo/%s/estado", config.ID) // topic for the last will, built with the node ID
 	payloadTestamento := `{"estado":"offline"}`                 // serializado
 
 	opts := mqtt.NewClientOptions().
@@ -79,7 +79,7 @@ func (c *Cliente) Conectar() error {
 //	El JSON debe tener: {"nodo_id": ..., "temperatura": ..., "unidad":"C", "timestamp":"..."}
 func (c *Cliente) PublicarLecturas(sim *sensor.Simulador, config nodo.Configuracion) {
 
-	ticker := time.NewTicker(config.IntervaloSegundos * time.Second)                       // crea un ticker que se activa cada IntervaloSegundos
+	ticker := time.NewTicker(config.IntervaloSegundos)                                     // IntervaloSegundos is already a time.Duration; no conversion needed
 	defer ticker.Stop()                                                                    // asegura que el ticker se detenga al finalizar la función
 	topico := fmt.Sprintf("campus/%s/%s/sensor/temperatura", config.Edificio, config.Aula) // tópico para publicar las lecturas
 
